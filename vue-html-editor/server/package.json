@@ -5,9 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch index.js",
-    "start": "bun run index.js",
-    "build": "echo 'No build step needed'",
+    "dev": "node init && bun run --watch index.js",
+    "start": "node init && bun run index.js",
+    "build": "node init && echo 'No build step needed'",
     "test": "echo 'No tests yet'"
   },
   "keywords": [
