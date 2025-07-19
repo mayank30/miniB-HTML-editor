@@ -51,23 +51,105 @@ function createNewDocument() {
   showNotification('Created new document', 'info')
 }
 
-function loadDocument(doc: EditorDocument) {
+async function loadDocument(doc: EditorDocument) {
   if (editorStore.hasUnsavedChanges) {
     if (!confirm('You have unsaved changes. Load this document?')) {
       return
     }
   }
   
-  editorStore.setCurrentDocument(doc)
-  editorStore.addToRecent(doc)
-  content.value = doc.content
-  showNotification(`Loaded "${doc.title}"`, 'success')
+  try {
+    // Load from server if we don't have content locally
+    if (!doc.content) {
+      const response = await fetch(`http://localhost:3001/api/documents/${doc.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          doc = data.document
+        }
+      }
+    }
+    
+    editorStore.setCurrentDocument(doc)
+    editorStore.addToRecent(doc)
+    content.value = doc.content
+    showNotification(`Loaded "${doc.title}"`, 'success')
+  } catch (error) {
+    console.error('Failed to load document:', error)
+    showNotification('Failed to load document', 'error')
+  }
 }
 
-function handleSave(data: { content: string; title: string }) {
-  // Simulate server save
-  setTimeout(() => {
-    // Save to localStorage as fallback
+async function handleSave(data: { content: string; title: string }) {
+  try {
+    showNotification('Saving document...', 'info')
+    
+    let documentId = editorStore.currentDocument?.id
+    
+    if (documentId) {
+      // Update existing document
+      const response = await fetch(`http://localhost:3001/api/documents/${documentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: data.title,
+          content: data.content
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save document')
+      }
+      
+      const result = await response.json()
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save document')
+      }
+    } else {
+      // Create new document  
+      const response = await fetch('http://localhost:3001/api/documents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: data.title,
+          content: data.content
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to create document')
+      }
+      
+      const result = await response.json()
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create document')
+      }
+      
+      documentId = result.document.id
+      
+      // Update current document with new ID
+      if (editorStore.currentDocument) {
+        editorStore.currentDocument.id = documentId
+      }
+    }
+    
+    // Update local state
+    if (editorStore.currentDocument) {
+      editorStore.currentDocument.title = data.title
+      editorStore.currentDocument.content = data.content
+      editorStore.setUnsavedChanges(false)
+    }
+    
+    showNotification('Document saved successfully', 'success')
+  } catch (error) {
+    console.error('Save error:', error)
+    showNotification('Failed to save document', 'error')
+    
+    // Fallback to localStorage
     const documents = JSON.parse(localStorage.getItem('vue-html-editor-documents') || '[]')
     
     if (editorStore.currentDocument) {
@@ -89,12 +171,11 @@ function handleSave(data: { content: string; title: string }) {
     }
     
     localStorage.setItem('vue-html-editor-documents', JSON.stringify(documents))
-    showNotification('Document saved successfully', 'success')
-  }, 500)
+    showNotification('Document saved locally', 'info')
+  }
 }
 
 function handleLoad(id: string) {
-  // This would typically load from server
   showNotification('Document loaded', 'success')
 }
 
@@ -116,15 +197,43 @@ function handleExport(data: { content: string; title: string }) {
   showNotification('Document exported successfully', 'success')
 }
 
-function handleImageUpload(file: File) {
-  // Simulate image upload
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    const imageUrl = e.target?.result as string
-    // In a real app, you would upload to server and get URL back
+async function handleImageUpload(file: File) {
+  try {
+    showNotification('Uploading image...', 'info')
+    
+    const formData = new FormData()
+    formData.append('image', file)
+    
+    const response = await fetch('http://localhost:3001/api/upload/image', {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error('Upload failed')
+    }
+    
+    const data = await response.json()
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Upload failed')
+    }
+    
     showNotification('Image uploaded successfully', 'success')
+    return data.url
+  } catch (error) {
+    console.error('Image upload error:', error)
+    showNotification('Failed to upload image', 'error')
+    
+    // Fallback to data URL
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const imageUrl = e.target?.result as string
+      showNotification('Image loaded locally (not uploaded)', 'info')
+      return imageUrl
+    }
+    reader.readAsDataURL(file)
   }
-  reader.readAsDataURL(file)
 }
 
 function generateCompleteHTML(content: string, title: string): string {

@@ -1,5 +1,28 @@
 <template>
   <div class="vue-html-editor bg-white rounded-lg shadow-lg overflow-hidden">
+    <!-- Slash Command Menu -->
+    <div
+      v-if="showSlashMenu"
+      class="absolute z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-[200px]"
+      :style="{ top: slashMenuPosition.top + 'px', left: slashMenuPosition.left + 'px' }"
+    >
+      <div
+        v-for="(command, index) in filteredSlashCommands"
+        :key="command.title"
+        @click="executeSlashCommand(command)"
+        :class="[
+          'px-3 py-2 flex items-center cursor-pointer hover:bg-gray-100',
+          { 'bg-blue-50': index === selectedSlashCommand }
+        ]"
+      >
+        <component :is="command.icon" class="w-4 h-4 mr-2 text-gray-500" />
+        <div>
+          <div class="text-sm font-medium">{{ command.title }}</div>
+          <div class="text-xs text-gray-500">{{ command.description }}</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toolbar -->
     <div class="toolbar bg-gray-50 border-b border-gray-200 p-3">
       <div class="flex flex-wrap items-center gap-2">
@@ -154,6 +177,10 @@
           >
             <ListOrdered class="w-4 h-4" />
           </button>
+        </div>
+
+        <!-- Elements -->
+        <div class="flex items-center gap-1 border-r border-gray-300 pr-3">
           <button
             class="toolbar-button"
             :class="{ 'is-active': editor?.isActive('blockquote') }"
@@ -162,16 +189,12 @@
           >
             <Quote class="w-4 h-4" />
           </button>
-        </div>
-
-        <!-- Insert Elements -->
-        <div class="flex items-center gap-1 border-r border-gray-300 pr-3">
           <button
             class="toolbar-button"
             @click="openLinkModal"
             title="Insert Link"
           >
-            <Link class="w-4 h-4" />
+            <LinkIcon class="w-4 h-4" />
           </button>
           <button
             class="toolbar-button"
@@ -185,10 +208,11 @@
             @click="openTableModal"
             title="Insert Table"
           >
-            <Table class="w-4 h-4" />
+            <TableIcon class="w-4 h-4" />
           </button>
           <button
             class="toolbar-button"
+            :class="{ 'is-active': editor?.isActive('codeBlock') }"
             @click="insertCodeBlock"
             title="Code Block"
           >
@@ -255,10 +279,30 @@
 
     <!-- Editor Content -->
     <div class="relative">
+      <!-- Placeholder for empty state -->
+      <div 
+        v-if="isEmpty" 
+        class="absolute top-6 left-6 text-gray-400 pointer-events-none flex items-center"
+      >
+        <span class="text-lg mr-2">✨</span>
+        <span>{{ props.placeholder }}</span>
+        <span class="ml-2 text-sm bg-gray-100 px-2 py-1 rounded">Type / for commands</span>
+      </div>
+      
       <editor-content
         :editor="editor"
-        class="prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto min-h-[400px] max-w-none p-6 focus:outline-none"
+        class="notion-editor prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto min-h-[400px] max-w-none p-6 focus:outline-none"
+        @drop="handleEditorDrop"
+        @dragover.prevent
       />
+    </div>
+
+    <!-- Loading overlay -->
+    <div v-if="isLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+      <div class="flex items-center space-x-2">
+        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+        <span class="text-sm text-gray-600">{{ loadingMessage }}</span>
+      </div>
     </div>
 
     <!-- Modals -->
@@ -284,6 +328,7 @@
       v-if="showSaveModal"
       @close="showSaveModal = false"
       @save="saveDocument"
+      :currentDocument="editorStore.currentDocument"
     />
     
     <FileModal
@@ -295,7 +340,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -317,7 +362,8 @@ import {
   Undo, Redo, Bold, Italic, Strikethrough,
   Palette, Highlighter, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Quote, Link as LinkIcon, Image as ImageIcon,
-  Table as TableIcon, Code, Minus, Save, FolderOpen, Download
+  TableIcon, Code, Minus, Save, FolderOpen, Download,
+  Type, Heading1, Heading2, Heading3, FileText, Hash
 } from 'lucide-vue-next'
 
 // Import modals and composables
@@ -328,6 +374,9 @@ import SaveModal from './modals/SaveModal.vue'
 import FileModal from './modals/FileModal.vue'
 import { useEditorStore } from '@/stores/editor'
 import type { LinkData, ImageUploadData, TableData, EditorDocument } from '@/types/editor'
+
+// API Base URL
+const API_BASE_URL = 'http://localhost:3001/api'
 
 // Props and Emits
 interface Props {
@@ -367,6 +416,84 @@ const showImageModal = ref(false)
 const showTableModal = ref(false)
 const showSaveModal = ref(false)
 const showFileModal = ref(false)
+const isLoading = ref(false)
+const loadingMessage = ref('')
+
+// Slash command state
+const showSlashMenu = ref(false)
+const slashMenuPosition = ref({ top: 0, left: 0 })
+const selectedSlashCommand = ref(0)
+const slashQuery = ref('')
+
+// Slash commands configuration
+const slashCommands = [
+  {
+    title: 'Heading 1',
+    description: 'Large section heading',
+    icon: Heading1,
+    command: () => editor.value?.chain().focus().toggleHeading({ level: 1 }).run()
+  },
+  {
+    title: 'Heading 2',
+    description: 'Medium section heading',
+    icon: Heading2,
+    command: () => editor.value?.chain().focus().toggleHeading({ level: 2 }).run()
+  },
+  {
+    title: 'Heading 3',
+    description: 'Small section heading',
+    icon: Heading3,
+    command: () => editor.value?.chain().focus().toggleHeading({ level: 3 }).run()
+  },
+  {
+    title: 'Paragraph',
+    description: 'Plain text paragraph',
+    icon: Type,
+    command: () => editor.value?.chain().focus().setParagraph().run()
+  },
+  {
+    title: 'Bullet List',
+    description: 'Unordered list with bullets',
+    icon: List,
+    command: () => editor.value?.chain().focus().toggleBulletList().run()
+  },
+  {
+    title: 'Numbered List',
+    description: 'Ordered list with numbers',
+    icon: ListOrdered,
+    command: () => editor.value?.chain().focus().toggleOrderedList().run()
+  },
+  {
+    title: 'Quote',
+    description: 'Capture a quote',
+    icon: Quote,
+    command: () => editor.value?.chain().focus().toggleBlockquote().run()
+  },
+  {
+    title: 'Code Block',
+    description: 'Code snippet with syntax highlighting',
+    icon: Code,
+    command: () => editor.value?.chain().focus().toggleCodeBlock().run()
+  },
+  {
+    title: 'Table',
+    description: 'Insert a table',
+    icon: TableIcon,
+    command: () => openTableModal()
+  },
+  {
+    title: 'Image',
+    description: 'Upload or embed an image',
+    icon: ImageIcon,
+    command: () => openImageModal()
+  },
+  {
+    title: 'Divider',
+    description: 'Horizontal rule',
+    icon: Minus,
+    command: () => editor.value?.chain().focus().setHorizontalRule().run()
+  }
+]
 
 // Colors for color picker
 const colors = [
@@ -381,6 +508,14 @@ const lowlight = createLowlight(common)
 
 // Computed
 const canSave = computed(() => editorStore.canSave)
+const isEmpty = computed(() => !editor.value?.getHTML() || editor.value?.getHTML() === '<p></p>')
+const filteredSlashCommands = computed(() => {
+  if (!slashQuery.value) return slashCommands
+  return slashCommands.filter(cmd => 
+    cmd.title.toLowerCase().includes(slashQuery.value.toLowerCase()) ||
+    cmd.description.toLowerCase().includes(slashQuery.value.toLowerCase())
+  )
+})
 
 // TipTap Editor setup
 const editor = useEditor({
@@ -419,7 +554,7 @@ const editor = useEditor({
     CodeBlockLowlight.configure({
       lowlight,
       HTMLAttributes: {
-        class: 'rounded-lg bg-gray-800 text-white p-4 font-mono text-sm'
+        class: 'notion-code-block'
       }
     })
   ],
@@ -427,12 +562,51 @@ const editor = useEditor({
     attributes: {
       class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none',
       'data-placeholder': props.placeholder
+    },
+    handleKeyDown: (view, event) => {
+      // Handle slash command
+      if (event.key === '/') {
+        setTimeout(() => {
+          checkForSlashCommand()
+        }, 100)
+      }
+      
+      // Handle slash menu navigation
+      if (showSlashMenu.value) {
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          selectedSlashCommand.value = Math.min(selectedSlashCommand.value + 1, filteredSlashCommands.value.length - 1)
+          return true
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault()
+          selectedSlashCommand.value = Math.max(selectedSlashCommand.value - 1, 0)
+          return true
+        }
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          executeSlashCommand(filteredSlashCommands.value[selectedSlashCommand.value])
+          return true
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          hideSlashMenu()
+          return true
+        }
+      }
+      
+      return false
     }
   },
   onUpdate: ({ editor }) => {
     const html = editor.getHTML()
     emit('update:modelValue', html)
     editorStore.updateContent(html)
+    
+    // Check for slash command as user types
+    if (showSlashMenu.value) {
+      checkForSlashCommand()
+    }
   }
 })
 
@@ -451,6 +625,127 @@ function toggleHeading() {
 function setTextColor(color: string) {
   editor.value?.chain().focus().setColor(color).run()
   showColorPicker.value = false
+}
+
+// Slash command functionality
+function checkForSlashCommand() {
+  if (!editor.value) return
+  
+  const { state } = editor.value
+  const { selection } = state
+  const { $from } = selection
+  
+  const textBefore = $from.nodeBefore?.textContent || ''
+  const beforeCursor = state.doc.textBetween(Math.max(0, $from.pos - 20), $from.pos)
+  
+  const slashMatch = beforeCursor.match(/\/(\w*)$/)
+  
+  if (slashMatch) {
+    slashQuery.value = slashMatch[1]
+    selectedSlashCommand.value = 0
+    showSlashMenu.value = true
+    
+    // Position the menu
+    nextTick(() => {
+      const coords = editor.value?.view.coordsAtPos($from.pos)
+      if (coords) {
+        slashMenuPosition.value = {
+          top: coords.bottom + 5,
+          left: coords.left
+        }
+      }
+    })
+  } else {
+    hideSlashMenu()
+  }
+}
+
+function hideSlashMenu() {
+  showSlashMenu.value = false
+  slashQuery.value = ''
+  selectedSlashCommand.value = 0
+}
+
+function executeSlashCommand(command: any) {
+  if (!editor.value) return
+  
+  // Remove the slash and query text
+  const { state } = editor.value
+  const { selection } = state
+  const { $from } = selection
+  
+  const beforeCursor = state.doc.textBetween(Math.max(0, $from.pos - 20), $from.pos)
+  const slashMatch = beforeCursor.match(/\/(\w*)$/)
+  
+  if (slashMatch) {
+    const matchLength = slashMatch[0].length
+    editor.value.chain().focus()
+      .deleteRange({ from: $from.pos - matchLength, to: $from.pos })
+      .run()
+  }
+  
+  hideSlashMenu()
+  
+  // Execute the command
+  setTimeout(() => {
+    command.command()
+  }, 50)
+}
+
+// File upload functionality
+async function uploadImageToServer(file: File): Promise<string> {
+  isLoading.value = true
+  loadingMessage.value = 'Uploading image...'
+  
+  try {
+    const formData = new FormData()
+    formData.append('image', file)
+    
+    const response = await fetch(`${API_BASE_URL}/upload/image`, {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error('Upload failed')
+    }
+    
+    const data = await response.json()
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Upload failed')
+    }
+    
+    return data.url
+  } catch (error) {
+    console.error('Image upload error:', error)
+    throw error
+  } finally {
+    isLoading.value = false
+    loadingMessage.value = ''
+  }
+}
+
+// Enhanced drag and drop for editor
+function handleEditorDrop(event: DragEvent) {
+  event.preventDefault()
+  
+  const files = event.dataTransfer?.files
+  if (files && files.length > 0) {
+    const file = files[0]
+    
+    if (file.type.startsWith('image/')) {
+      uploadImageToServer(file)
+        .then(url => {
+          if (editor.value) {
+            editor.value.chain().focus().setImage({ src: url, alt: file.name }).run()
+          }
+        })
+        .catch(error => {
+          console.error('Failed to upload image:', error)
+        })
+    }
+  }
 }
 
 function openLinkModal() {
@@ -474,19 +769,27 @@ function openImageModal() {
   showImageModal.value = true
 }
 
-function insertImage(data: ImageUploadData) {
+async function insertImage(data: ImageUploadData) {
   if (!editor.value) return
   
-  if (data.url) {
+  let imageUrl = data.url
+  
+  // If file is provided, upload it first
+  if (data.file) {
+    try {
+      imageUrl = await uploadImageToServer(data.file)
+    } catch (error) {
+      console.error('Failed to upload image:', error)
+      return
+    }
+  }
+  
+  if (imageUrl) {
     editor.value.chain().focus().setImage({
-      src: data.url,
+      src: imageUrl,
       alt: data.alt,
       title: data.alt
     }).run()
-  }
-  
-  if (data.file) {
-    emit('image-upload', data.file)
   }
   
   showImageModal.value = false
@@ -512,7 +815,7 @@ function insertCodeBlock() {
   editor.value?.chain().focus().toggleCodeBlock().run()
 }
 
-function handleSave() {
+async function handleSave() {
   if (!editor.value) return
   
   const content = editor.value.getHTML()
@@ -522,23 +825,75 @@ function handleSave() {
   showSaveModal.value = true
 }
 
-function saveDocument(data: { title: string; filename: string }) {
+async function saveDocument(data: { title: string; filename: string }) {
   if (!editor.value) return
   
-  const content = editor.value.getHTML()
+  isLoading.value = true
+  loadingMessage.value = 'Saving document...'
   
-  // Update current document
-  if (editorStore.currentDocument) {
-    editorStore.currentDocument.title = data.title
-    editorStore.currentDocument.content = content
-    editorStore.setUnsavedChanges(false)
-  } else {
-    const doc = editorStore.createNewDocument(data.title)
-    doc.content = content
+  try {
+    const content = editor.value.getHTML()
+    
+    let documentId = editorStore.currentDocument?.id
+    
+    if (documentId) {
+      // Update existing document
+      const response = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: data.title,
+          content: content
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save document')
+      }
+    } else {
+      // Create new document
+      const response = await fetch(`${API_BASE_URL}/documents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: data.title,
+          content: content
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to create document')
+      }
+      
+      const result = await response.json()
+      documentId = result.document.id
+    }
+    
+    // Update local state
+    if (editorStore.currentDocument) {
+      editorStore.currentDocument.title = data.title
+      editorStore.currentDocument.content = content
+      editorStore.setUnsavedChanges(false)
+    } else {
+      const doc = editorStore.createNewDocument(data.title)
+      doc.content = content
+      doc.id = documentId
+    }
+    
+    editorStore.emitEvent('save', { title: data.title, filename: data.filename, content })
+    
+  } catch (error) {
+    console.error('Save error:', error)
+    throw error
+  } finally {
+    isLoading.value = false
+    loadingMessage.value = ''
+    showSaveModal.value = false
   }
-  
-  editorStore.emitEvent('save', { title: data.title, filename: data.filename, content })
-  showSaveModal.value = false
 }
 
 function openFileModal() {
@@ -656,5 +1011,156 @@ onBeforeUnmount(() => {
 .color-picker-grid {
   position: relative;
   z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.color-picker-item {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.color-picker-item:hover {
+  transform: scale(1.1);
+}
+
+.toolbar-button {
+  @apply p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors;
+}
+
+.toolbar-button.is-active {
+  @apply bg-blue-100 text-blue-700;
+}
+
+.toolbar-button:disabled {
+  @apply text-gray-400 cursor-not-allowed;
+}
+
+/* Notion-like editor styles */
+.notion-editor {
+  line-height: 1.6;
+}
+
+.notion-editor :deep(.ProseMirror) {
+  outline: none;
+  padding: 0;
+}
+
+.notion-editor :deep(.ProseMirror p.is-editor-empty:first-child::before) {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+
+.notion-editor :deep(.ProseMirror h1) {
+  @apply text-3xl font-bold text-gray-900 mt-8 mb-4;
+}
+
+.notion-editor :deep(.ProseMirror h2) {
+  @apply text-2xl font-bold text-gray-900 mt-6 mb-3;
+}
+
+.notion-editor :deep(.ProseMirror h3) {
+  @apply text-xl font-bold text-gray-900 mt-5 mb-2;
+}
+
+.notion-editor :deep(.ProseMirror h4) {
+  @apply text-lg font-semibold text-gray-900 mt-4 mb-2;
+}
+
+.notion-editor :deep(.ProseMirror h5) {
+  @apply text-base font-semibold text-gray-900 mt-3 mb-1;
+}
+
+.notion-editor :deep(.ProseMirror h6) {
+  @apply text-sm font-semibold text-gray-900 mt-2 mb-1;
+}
+
+.notion-editor :deep(.ProseMirror p) {
+  @apply text-gray-700 mb-3;
+}
+
+.notion-editor :deep(.ProseMirror blockquote) {
+  @apply border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-50 text-gray-700 italic;
+}
+
+.notion-editor :deep(.ProseMirror ul, .ProseMirror ol) {
+  @apply pl-6 mb-4;
+}
+
+.notion-editor :deep(.ProseMirror li) {
+  @apply mb-1;
+}
+
+.notion-editor :deep(.ProseMirror .notion-code-block) {
+  @apply bg-gray-900 text-gray-100 p-4 rounded-lg mb-4 overflow-x-auto;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.notion-editor :deep(.ProseMirror .notion-code-block pre) {
+  @apply bg-transparent p-0 m-0;
+}
+
+.notion-editor :deep(.ProseMirror table) {
+  @apply w-full border-collapse mb-4;
+}
+
+.notion-editor :deep(.ProseMirror th, .ProseMirror td) {
+  @apply border border-gray-300 px-3 py-2 text-left;
+}
+
+.notion-editor :deep(.ProseMirror th) {
+  @apply bg-gray-50 font-semibold;
+}
+
+.notion-editor :deep(.ProseMirror hr) {
+  @apply border-0 border-t border-gray-300 my-6;
+}
+
+.notion-editor :deep(.ProseMirror a) {
+  @apply text-blue-600 underline hover:text-blue-800;
+}
+
+.notion-editor :deep(.ProseMirror img) {
+  @apply max-w-full h-auto rounded-lg shadow-sm my-4;
+}
+
+/* Focus states for better accessibility */
+.notion-editor :deep(.ProseMirror:focus-within) {
+  @apply outline-none;
+}
+
+/* Code syntax highlighting improvements */
+.notion-editor :deep(.hljs-keyword) {
+  @apply text-purple-400;
+}
+
+.notion-editor :deep(.hljs-string) {
+  @apply text-green-400;
+}
+
+.notion-editor :deep(.hljs-number) {
+  @apply text-blue-400;
+}
+
+.notion-editor :deep(.hljs-comment) {
+  @apply text-gray-500;
+}
+
+.notion-editor :deep(.hljs-function) {
+  @apply text-yellow-400;
+}
+
+.notion-editor :deep(.hljs-variable) {
+  @apply text-red-400;
 }
 </style>

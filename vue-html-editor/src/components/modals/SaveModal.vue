@@ -1,184 +1,349 @@
 <template>
   <div class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Save Document</h3>
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">
+        {{ isEditing ? 'Save Document' : 'Save New Document' }}
+      </h3>
       
-      <form @submit.prevent="saveDocument">
-        <div class="space-y-4">
-          <div>
-            <label for="documentTitle" class="block text-sm font-medium text-gray-700 mb-1">
-              Document Title *
-            </label>
-            <input
-              id="documentTitle"
-              v-model="saveData.title"
-              type="text"
-              required
-              placeholder="Enter document title"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          
-          <div>
-            <label for="filename" class="block text-sm font-medium text-gray-700 mb-1">
-              Filename *
-            </label>
-            <div class="flex">
-              <input
-                id="filename"
-                v-model="saveData.filename"
-                type="text"
-                required
-                placeholder="my-document"
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm rounded-r-md">
-                .html
-              </span>
-            </div>
-            <p class="mt-1 text-xs text-gray-500">
-              Only letters, numbers, hyphens, and underscores are allowed
-            </p>
-          </div>
-          
-          <div class="space-y-3">
-            <h4 class="text-sm font-medium text-gray-700">Save Options</h4>
-            
-            <div class="space-y-2">
-              <label class="flex items-center">
-                <input
-                  v-model="saveData.saveAsComplete"
-                  type="radio"
-                  :value="true"
-                  name="saveType"
-                  class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                />
-                <span class="ml-2 text-sm text-gray-700">
-                  Complete HTML document
-                  <span class="text-gray-500">(standalone file with embedded CSS)</span>
-                </span>
-              </label>
-              
-              <label class="flex items-center">
-                <input
-                  v-model="saveData.saveAsComplete"
-                  type="radio"
-                  :value="false"
-                  name="saveType"
-                  class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                />
-                <span class="ml-2 text-sm text-gray-700">
-                  Content only
-                  <span class="text-gray-500">(HTML content without document structure)</span>
-                </span>
-              </label>
-            </div>
-          </div>
-          
-          <div v-if="saveData.saveAsComplete" class="border border-gray-200 rounded-md p-3 bg-gray-50">
-            <div class="flex items-start">
-              <Info class="w-4 h-4 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
-              <div class="text-xs text-gray-600">
-                <p class="font-medium">Complete HTML document includes:</p>
-                <ul class="mt-1 list-disc list-inside space-y-0.5">
-                  <li>DOCTYPE declaration and HTML structure</li>
-                  <li>Embedded CSS styling for beautiful output</li>
-                  <li>Responsive design and typography</li>
-                  <li>Ready to open in any web browser</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+      <div class="space-y-4">
+        <div>
+          <label for="documentTitle" class="block text-sm font-medium text-gray-700 mb-1">
+            Document Title *
+          </label>
+          <input
+            id="documentTitle"
+            v-model="saveData.title"
+            type="text"
+            required
+            placeholder="Enter document title"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            @keydown.enter="saveDocument"
+          />
+          <p v-if="titleError" class="text-sm text-red-600 mt-1">{{ titleError }}</p>
         </div>
         
-        <div class="flex justify-end space-x-3 mt-6">
-          <button
-            type="button"
-            @click="closeModal"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            :disabled="!isValid"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors"
-          >
-            Save Document
-          </button>
+        <div>
+          <label for="documentFilename" class="block text-sm font-medium text-gray-700 mb-1">
+            Filename
+          </label>
+          <input
+            id="documentFilename"
+            v-model="saveData.filename"
+            type="text"
+            placeholder="Auto-generated from title"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            @keydown.enter="saveDocument"
+          />
+          <p class="text-xs text-gray-500 mt-1">
+            Leave blank to auto-generate from title. Must end with .html
+          </p>
+          <p v-if="filenameError" class="text-sm text-red-600 mt-1">{{ filenameError }}</p>
         </div>
-      </form>
+
+        <!-- Document Info -->
+        <div v-if="currentDocument" class="bg-gray-50 rounded-lg p-3">
+          <h4 class="text-sm font-medium text-gray-900 mb-2">Document Information</h4>
+          <div class="grid grid-cols-2 gap-4 text-xs text-gray-600">
+            <div>
+              <span class="font-medium">Created:</span>
+              <div>{{ formatDate(currentDocument.createdAt) }}</div>
+            </div>
+            <div v-if="currentDocument.updatedAt">
+              <span class="font-medium">Last Modified:</span>
+              <div>{{ formatDate(currentDocument.updatedAt) }}</div>
+            </div>
+            <div>
+              <span class="font-medium">Word Count:</span>
+              <div>{{ wordCount }}</div>
+            </div>
+            <div>
+              <span class="font-medium">Characters:</span>
+              <div>{{ charCount }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Save Options -->
+        <div class="space-y-3">
+          <h4 class="text-sm font-medium text-gray-900">Save Options</h4>
+          
+          <div class="flex items-center">
+            <input
+              id="saveAsComplete"
+              v-model="saveData.saveAsComplete"
+              type="checkbox"
+              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label for="saveAsComplete" class="ml-2 text-sm text-gray-700">
+              Save as complete HTML document
+            </label>
+          </div>
+          <p class="text-xs text-gray-500 ml-6">
+            Includes styling and can be opened in any web browser
+          </p>
+          
+          <div class="flex items-center">
+            <input
+              id="updateRecent"
+              v-model="saveData.updateRecent"
+              type="checkbox"
+              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label for="updateRecent" class="ml-2 text-sm text-gray-700">
+              Add to recent documents
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex justify-end space-x-3 mt-6">
+        <button
+          @click="closeModal"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          @click="saveDocument"
+          :disabled="!canSave"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-md transition-colors"
+        >
+          {{ isEditing ? 'Update Document' : 'Save Document' }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { Info } from 'lucide-vue-next'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import type { EditorDocument } from '@/types/editor'
 
-interface SaveData {
-  title: string
-  filename: string
-  saveAsComplete: boolean
+interface Props {
+  currentDocument?: EditorDocument | null
 }
 
 interface Emits {
   (e: 'close'): void
-  (e: 'save', data: { title: string; filename: string }): void
+  (e: 'save', data: { title: string; filename: string; saveAsComplete: boolean; updateRecent: boolean }): void
 }
 
+const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const saveData = ref<SaveData>({
-  title: 'Untitled Document',
+// Reactive state
+const saveData = ref({
+  title: '',
   filename: '',
-  saveAsComplete: true
+  saveAsComplete: true,
+  updateRecent: true
 })
 
-const isValid = computed(() => {
-  return saveData.value.title.trim() && 
-         saveData.value.filename.trim() && 
-         isValidFilename(saveData.value.filename)
+const titleError = ref<string | null>(null)
+const filenameError = ref<string | null>(null)
+
+// Computed
+const isEditing = computed(() => !!props.currentDocument?.id)
+
+const canSave = computed(() => {
+  return saveData.value.title.trim() && !titleError.value && !filenameError.value
 })
 
-function isValidFilename(filename: string): boolean {
-  // Only allow letters, numbers, hyphens, and underscores
-  return /^[a-zA-Z0-9_-]+$/.test(filename)
-}
+const wordCount = computed(() => {
+  if (!props.currentDocument?.content) return 0
+  const text = props.currentDocument.content.replace(/<[^>]*>/g, '')
+  return text.trim() ? text.trim().split(/\s+/).length : 0
+})
 
+const charCount = computed(() => {
+  if (!props.currentDocument?.content) return 0
+  return props.currentDocument.content.replace(/<[^>]*>/g, '').length
+})
+
+// Methods
 function closeModal() {
   emit('close')
 }
 
+function validateTitle() {
+  titleError.value = null
+  
+  if (!saveData.value.title.trim()) {
+    titleError.value = 'Title is required'
+    return false
+  }
+  
+  if (saveData.value.title.trim().length < 1) {
+    titleError.value = 'Title must be at least 1 character'
+    return false
+  }
+  
+  if (saveData.value.title.trim().length > 100) {
+    titleError.value = 'Title must be less than 100 characters'
+    return false
+  }
+  
+  // Check for invalid characters in title
+  const invalidChars = /[<>:"/\\|?*]/
+  if (invalidChars.test(saveData.value.title)) {
+    titleError.value = 'Title contains invalid characters: < > : " / \\ | ? *'
+    return false
+  }
+  
+  return true
+}
+
+function validateFilename() {
+  filenameError.value = null
+  
+  if (!saveData.value.filename.trim()) {
+    // Auto-generate filename from title
+    generateFilename()
+    return true
+  }
+  
+  const filename = saveData.value.filename.trim()
+  
+  // Check if filename ends with .html
+  if (!filename.toLowerCase().endsWith('.html')) {
+    filenameError.value = 'Filename must end with .html'
+    return false
+  }
+  
+  // Check for invalid characters in filename
+  const invalidChars = /[<>:"/\\|?*]/
+  if (invalidChars.test(filename)) {
+    filenameError.value = 'Filename contains invalid characters: < > : " / \\ | ? *'
+    return false
+  }
+  
+  // Check filename length
+  if (filename.length > 255) {
+    filenameError.value = 'Filename is too long (max 255 characters)'
+    return false
+  }
+  
+  return true
+}
+
+function generateFilename() {
+  if (!saveData.value.title.trim()) return
+  
+  // Create a safe filename from title
+  const safeTitle = saveData.value.title
+    .trim()
+    .replace(/[<>:"/\\|?*]/g, '') // Remove invalid characters
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .toLowerCase()
+  
+  saveData.value.filename = `${safeTitle}.html`
+}
+
 function saveDocument() {
-  if (isValid.value) {
-    emit('save', {
-      title: saveData.value.title.trim(),
-      filename: saveData.value.filename.trim()
-    })
+  if (!validateTitle() || !validateFilename()) {
+    return
+  }
+  
+  emit('save', {
+    title: saveData.value.title.trim(),
+    filename: saveData.value.filename.trim() || generateFilenameFromTitle(),
+    saveAsComplete: saveData.value.saveAsComplete,
+    updateRecent: saveData.value.updateRecent
+  })
+}
+
+function generateFilenameFromTitle(): string {
+  const safeTitle = saveData.value.title
+    .trim()
+    .replace(/[<>:"/\\|?*]/g, '')
+    .replace(/\s+/g, '_')
+    .toLowerCase()
+  
+  return `${safeTitle}.html`
+}
+
+function formatDate(date?: Date): string {
+  if (!date) return 'N/A'
+  
+  const d = typeof date === 'string' ? new Date(date) : date
+  
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(d)
+}
+
+// Handle escape key
+function handleEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    closeModal()
   }
 }
 
-// Auto-generate filename from title
-watch(() => saveData.value.title, (newTitle) => {
-  if (!saveData.value.filename || saveData.value.filename === generateFilename(saveData.value.title)) {
-    saveData.value.filename = generateFilename(newTitle)
+// Watch for title changes to auto-generate filename
+watch(() => saveData.value.title, () => {
+  validateTitle()
+  if (!saveData.value.filename.trim()) {
+    generateFilename()
   }
 })
 
-function generateFilename(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-    .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
-    || 'untitled-document'
-}
+watch(() => saveData.value.filename, () => {
+  validateFilename()
+})
 
-// Initialize with default values
-import { onMounted } from 'vue'
+// Initialize form data
 onMounted(() => {
-  saveData.value.filename = generateFilename(saveData.value.title)
+  document.addEventListener('keydown', handleEscape)
+  
+  // Initialize with current document data if editing
+  if (props.currentDocument) {
+    saveData.value.title = props.currentDocument.title || ''
+    saveData.value.filename = '' // Let it auto-generate
+  } else {
+    saveData.value.title = 'Untitled Document'
+    saveData.value.filename = ''
+  }
+  
+  // Generate initial filename
+  generateFilename()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleEscape)
 })
 </script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 32rem;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .modal-content {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+}
+</style>
