@@ -1,253 +1,343 @@
-# miniB-HTML-editor
-Yet another fully featured HTML editor...
-by ColeNikol
+# Vue HTML Editor
 
-A modern, feature-rich WYSIWYG HTML editor that creates complete, standalone HTML documents. Built with Font Awesome, Tailwind CSS and vanilla JavaScript for maximum compatibility and performance.
+A modern, feature-rich WYSIWYG HTML editor built with Vue 3, TipTap, Tailwind CSS 4, and Lucide icons. Perfect for building Notion-like editors and comment systems.
 
 ## ✨ Features
 
-### 🎨 **Rich Text Editing**
+### 🎨 Rich Text Editing
 - **Text Formatting**: Bold, italic, underline, strikethrough
 - **Headings**: H1 through H6 with proper semantic markup
-- **Lists**: Ordered and unordered lists
+- **Lists**: Bullet and numbered lists
 - **Alignment**: Left, center, right, and justify alignment
-- **Colors**: Text color and background color pickers
+- **Colors**: Text color picker with predefined colors
+- **Highlighting**: Text highlighting support
 - **Blockquotes**: Styled quote blocks
 
-### 📎 **Content Insertion**
-- **Links**: Insert links with custom text, new tab option, and rel attributes
+### 📎 Content Insertion
+- **Links**: Insert links with custom text, target options, and rel attributes
 - **Images**: Upload images or use external URLs with alt text and dimensions
-- **Tables**: Create tables with customizable rows, columns, headers, and borders
-- **Code Blocks**: Insert syntax-highlighted code with language selection
+- **Tables**: Create tables with customizable rows, columns, and headers
+- **Code Blocks**: Insert syntax-highlighted code blocks
+- **Horizontal Rules**: Insert divider lines
 
-### 💾 **File Management**
-- **Save HTML**: Generate standalone HTML documents with embedded CSS saved on server
-- **Download**: Download generated HTML file
-- **Open Files**: Load previously saved documents
-- **Preview**: Preview documents in a new browser tab
+### 💾 File Management
+- **Save Documents**: Save with custom titles and filenames
+- **Load Documents**: Browse and load previously saved documents
+- **Export HTML**: Generate standalone HTML documents with embedded CSS
+- **Auto-save**: Optional auto-save functionality
+- **Recent Documents**: Quick access to recently edited documents
 
-### ⌨️ **Keyboard Shortcuts**
-- `common keyboard shortcuts implemented for use
+### ⌨️ Keyboard Shortcuts
+- `Ctrl/Cmd + S`: Save document
+- `Ctrl/Cmd + O`: Open document
+- `Ctrl/Cmd + B`: Bold
+- `Ctrl/Cmd + I`: Italic
+- `Ctrl/Cmd + U`: Underline
+- `Ctrl/Cmd + Z`: Undo
+- `Ctrl/Cmd + Y`: Redo
 
-### 🧰 **Advanced Features**
-- **Code Snippets Manager**: Add, edit, delete, filter, and copy code snippets for reuse. Snippets are stored in `assets/snippett.json` and can be managed from the toolbar or the admin panel.
-- **Admin Panel**: Access `assets/admin.php` (password: `123`) to manage all code snippets and uploaded files. Add, edit, or delete snippets, view and delete uploaded files, delete by type, or empty the uploads folder (except `index.php`).
-- **Improved Code Block Insertion**: Code blocks are always inserted at the caret position in the editor, never at the top. Each new code block is a separate block, not nested inside previous ones.
-- **Dark Mode Enhancements**: All modal dialogs, buttons, and snippet lists have improved contrast and appearance in dark mode for better accessibility.
-- **Uploads Management**: The admin panel allows you to preview, delete, or bulk-manage uploaded files in `assets/uploads`.
+### 🧰 Advanced Features
+- **Event System**: Complete event tracking for all editor actions
+- **State Management**: Pinia-based state management
+- **Server Integration**: RESTful API for document and image management
+- **TypeScript Support**: Full TypeScript implementation
+- **Responsive Design**: Works perfectly on all devices
+- **Accessibility**: WCAG compliant with proper ARIA labels
 
-## 🚀 Installation
+## 🚀 Quick Start
 
-1. **Download** all files to your web server
-2. **Ensure PHP is enabled** (for file operations and image uploads)
-3. **Set permissions** for the `assets/uploads` directory (755 or 777)
-4. **Open `index.php`** in your web browser
+### Installation
 
-## 📁 File Structure
+```bash
+# Clone the repository
+git clone <repository-url>
+cd vue-html-editor
 
-```
-editor/
-├── index.php          # Main editor interface
-├── editor.js          # JavaScript functionality
-├── editor.css         # Custom styles
-├── save.php           # File saving and image upload
-├── open.php           # File loading
-├── assets/
-│   └── uploads/       # Uploaded images
-└── README.md          # This file
-```
+# Install dependencies
+npm install
 
-## 🎯 Usage
+# Start development server
+npm run dev
 
-### Basic Editing
-1. **Start typing** in the main editor area
-2. **Use the toolbar** to format your text
-3. **Select text** and apply formatting
-4. **Use color pickers** to change text and background colors
-
-### Code Snippets
-
-1. Click the <i class="fas fa-scroll"></i> Snippets tab in the toolbar.
-2. Add new snippets, filter or sort them, and click the copy icon to copy a snippet to your clipboard for pasting anywhere in the editor.
-3. Snippets are saved in `assets/snippett.json` and can be managed from the admin panel as well.
-
-### Admin Panel
-
-1. Go to `assets/admin.php` and log in with password `123`.
-2. Manage all code snippets and uploaded files from a single interface.
-3. You can add, edit, or delete snippets, view and delete uploaded files, delete by type, or empty the uploads folder (except `index.php`).
-
-### Inserting Content
-
-#### Links
-- Click the link button (🔗)
-- Enter URL and optional text
-- Choose to open in new tab
-- Add rel attributes if needed
-
-#### Images
-- Click the image button 
-- Upload an image or enter URL
-- Add alt text for accessibility
-- Set custom dimensions if needed
-
-#### Tables
-- Click the table button 
-- Choose number of rows and columns
-- Option to include header row
-- Choose border styling
-
-#### Code Blocks
-- Click the code button 
-- Select programming language
-- Paste or type your code
-- Code will be syntax-highlighted
-
-### File Operations
-
-#### Saving
-- Click "Save" or use `Ctrl/Cmd + S`
-- Choose filename and title
-- Select "Complete HTML document" for standalone files
-- Files are saved with embedded CSS styling
-
-#### Opening
-- Click "Open" or use `Ctrl/Cmd + O`
-- Select from list of saved files
-- Files load with proper formatting preserved
-
-#### Preview
-- Click "Preview" to see document in new tab
-- Shows exactly how the saved HTML will look
-- No need to save first
-
-### HTML Mode
-- Click "HTML" button to switch to code view
-- Edit raw HTML directly
-- Click "Update" to apply changes
-- Click "Cancel" to discard changes
-
-## 🎨 Generated HTML
-
-When saving as a complete HTML document, the editor generates:
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Document Title</title>
-    <style>
-        /* Embedded CSS for beautiful styling */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        /* ... more styles ... */
-    </style>
-</head>
-<body>
-    <!-- Your content here -->
-</body>
-</html>
+# Start backend server (in another terminal)
+cd server
+bun install  # or npm install
+bun run dev  # or npm run dev
 ```
 
-## 🔧 Customization
+### Basic Usage
+
+```vue
+<template>
+  <div>
+    <VueHtmlEditor
+      v-model="content"
+      :placeholder="'Start writing...'"
+      :autosave="true"
+      :autosave-interval="30000"
+      @save="handleSave"
+      @export="handleExport"
+      @image-upload="handleImageUpload"
+    />
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import VueHtmlEditor from '@/components/VueHtmlEditor.vue'
+
+const content = ref('<p>Initial content</p>')
+
+function handleSave(data) {
+  console.log('Saving:', data.title, data.content)
+}
+
+function handleExport(data) {
+  console.log('Exporting:', data.title, data.content)
+}
+
+function handleImageUpload(file) {
+  console.log('Uploading image:', file.name)
+}
+</script>
+```
+
+## 📁 Project Structure
+
+```
+vue-html-editor/
+├── src/
+│   ├── components/
+│   │   ├── VueHtmlEditor.vue          # Main editor component
+│   │   └── modals/
+│   │       ├── LinkModal.vue          # Link insertion modal
+│   │       ├── ImageModal.vue         # Image upload modal
+│   │       ├── TableModal.vue         # Table creation modal
+│   │       ├── SaveModal.vue          # Document save modal
+│   │       └── FileModal.vue          # File browser modal
+│   ├── stores/
+│   │   └── editor.ts                  # Pinia store for state management
+│   ├── types/
+│   │   └── editor.ts                  # TypeScript interfaces
+│   ├── tests/
+│   │   ├── setup.ts                   # Test setup and mocks
+│   │   └── VueHtmlEditor.test.ts      # Component tests
+│   ├── App.vue                        # Main application component
+│   ├── main.ts                        # Application entry point
+│   └── style.css                      # Global styles
+├── server/
+│   ├── index.js                       # Express server
+│   ├── package.json                   # Server dependencies
+│   ├── documents/                     # Saved documents
+│   └── uploads/                       # Uploaded images
+├── package.json                       # Frontend dependencies
+├── vite.config.ts                     # Vite configuration
+├── tailwind.config.js                 # Tailwind CSS configuration
+├── vitest.config.ts                   # Vitest configuration
+└── README.md                          # This file
+```
+
+## 🎯 Component API
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `modelValue` | `string` | `''` | HTML content of the editor |
+| `placeholder` | `string` | `'Start writing...'` | Placeholder text |
+| `editable` | `boolean` | `true` | Whether the editor is editable |
+| `autosave` | `boolean` | `false` | Enable auto-save functionality |
+| `autosaveInterval` | `number` | `30000` | Auto-save interval in milliseconds |
+
+### Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `update:modelValue` | `string` | Emitted when content changes |
+| `save` | `{content: string, title: string}` | Emitted when save is triggered |
+| `load` | `string` | Emitted when a document is loaded |
+| `export` | `{content: string, title: string}` | Emitted when export is triggered |
+| `image-upload` | `File` | Emitted when an image is uploaded |
+
+## 🔧 Server API
+
+The backend provides a RESTful API for document and image management:
+
+### Documents
+- `GET /api/documents` - List all documents
+- `GET /api/documents/:id` - Get specific document
+- `POST /api/documents` - Create new document
+- `PUT /api/documents/:id` - Update document
+- `DELETE /api/documents/:id` - Delete document
+- `POST /api/documents/:id/export` - Export document as HTML
+
+### Images
+- `POST /api/upload/image` - Upload image file
+
+### Utility
+- `GET /api/health` - Health check
+- `POST /api/cleanup` - Clean up old documents
+
+## 🧪 Testing
+
+Run the test suite:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Test Coverage
+
+The project includes comprehensive tests for:
+- Component rendering and user interactions
+- Event emission and handling
+- Keyboard shortcuts
+- Modal functionality
+- State management
+- Error handling
+- Auto-save functionality
+
+## 🎨 Customization
 
 ### Styling
-- Modify `editor.css` for custom editor styles
-- Update Tailwind classes in `index.php`
-- Customize the generated HTML CSS in `editor.js`
 
-### Functionality
-- Add new toolbar buttons in `index.php`
-- Extend JavaScript functionality in `editor.js`
-- Modify PHP backend in `save.php` and `open.php`
+The editor uses Tailwind CSS 4 for styling. You can customize the appearance by:
 
-### Supported Languages for Code Blocks
-- HTML, CSS, JavaScript
-- PHP, Python, Java
-- C++, C#, SQL
-- Bash, JSON, XML
-- Markdown, Plain Text
+1. **Modifying Tailwind Config**: Update `tailwind.config.js` for global theme changes
+2. **Custom CSS**: Add custom styles in `src/style.css`
+3. **Component Styles**: Modify styles directly in Vue components
+
+### TipTap Extensions
+
+Add or configure TipTap extensions in `VueHtmlEditor.vue`:
+
+```javascript
+import YourExtension from '@tiptap/extension-your-extension'
+
+const editor = useEditor({
+  extensions: [
+    StarterKit,
+    YourExtension.configure({
+      // Your configuration
+    }),
+    // ... other extensions
+  ]
+})
+```
+
+### Color Palette
+
+Customize the color picker by modifying the `colors` array in `VueHtmlEditor.vue`:
+
+```javascript
+const colors = [
+  '#000000', '#ffffff', '#ff0000', // Add your colors
+  // ... more colors
+]
+```
 
 ## 🌐 Browser Support
 
-- **Chrome** 60+
-- **Firefox** 55+
-- **Safari** 12+
-- **Edge** 79+
+- **Chrome** 88+
+- **Firefox** 85+
+- **Safari** 14+
+- **Edge** 88+
 
 ## 🔒 Security Features
 
-- **File type validation** for image uploads
-- **File size limits** (5MB max for images)
-- **Filename sanitization** for saved files
-- **XSS protection** through proper HTML handling
-- **Input validation** and sanitization
+- **File Type Validation**: Only allows specific image types
+- **File Size Limits**: 5MB maximum for image uploads
+- **Filename Sanitization**: Prevents directory traversal attacks
+- **CORS Protection**: Configurable CORS settings
+- **Rate Limiting**: API rate limiting to prevent abuse
+- **Input Validation**: Comprehensive input validation
+- **XSS Protection**: HTML sanitization and escaping
 
 ## 📱 Mobile Support
 
-- **Responsive design** that works on all screen sizes
-- **Touch-friendly** interface
-- **Mobile-optimized** toolbar layout
-- **Gesture support** for common actions
+- **Touch-friendly Interface**: Optimized for touch interactions
+- **Responsive Design**: Adapts to all screen sizes
+- **Mobile Toolbar**: Collapsible toolbar for smaller screens
+- **Gesture Support**: Touch gestures for common actions
 
 ## 🚨 Troubleshooting
 
 ### Common Issues
 
 1. **Images not uploading**
-   - Check `assets/uploads` directory permissions (755 or 777)
-   - Verify PHP file upload settings in `php.ini`
-   - Check file size limits (max 5MB)
+   - Check server permissions for uploads directory
+   - Verify file size is under 5MB
+   - Ensure file type is supported (JPEG, PNG, GIF, WebP)
 
-2. **Files not saving**
-   - Ensure PHP is enabled on your server
-   - Check directory write permissions
-   - Verify file path is correct
+2. **Auto-save not working**
+   - Check if auto-save is enabled in props
+   - Verify auto-save interval setting
+   - Check browser console for errors
 
-3. **Styling issues**
-   - Check if Tailwind CSS is loading properly
-   - Verify `editor.css` is included
+3. **Styles not loading**
+   - Verify Tailwind CSS is properly configured
+   - Check if custom CSS files are imported
    - Clear browser cache
 
-4. **Icons not showing**
-   - Check internet connection for Font Awesome CDN
-   - Try refreshing the page
-   - Check browser console for errors
+4. **Server connection issues**
+   - Check if backend server is running
+   - Verify API endpoint URLs
+   - Check CORS configuration
 
 ### Performance Tips
 
-- **Large files**: Consider breaking content into smaller files
-- **Images**: Optimize images before uploading
-- **Auto-save**: Adjust the auto-save interval in `editor.js`
-- **Browser**: Use modern browsers for best performance
-
-## 📄 License
-
-This project is open source and available under the MIT License.
+- **Large Documents**: Break content into smaller sections
+- **Image Optimization**: Compress images before uploading
+- **Auto-save Frequency**: Adjust auto-save interval based on needs
+- **Bundle Size**: Use dynamic imports for large TipTap extensions
 
 ## 🤝 Contributing
 
-Feel free to submit issues, feature requests, or pull requests to improve the editor.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+
+- Follow Vue 3 Composition API patterns
+- Use TypeScript for type safety
+- Write tests for new features
+- Follow existing code style
+- Update documentation for API changes
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🎉 What Makes This Editor Special
 
-1. **Complete HTML Generation**: Creates standalone HTML files that work anywhere
-2. **Modern Design**: Beautiful, responsive interface with Tailwind CSS
-3. **Rich Features**: Tables, code blocks, image uploads, and more
-4. **Keyboard Shortcuts**: Professional-grade shortcuts for power users
-5. **Mobile Friendly**: Works perfectly on all devices
-6. **No Dependencies**: Pure HTML, CSS, and JavaScript (except Tailwind CDN and Font Awesome)
-7. **Easy to Customize**: Well-organized code for easy modification
-8. **Production Ready**: Includes security features and error handling
+1. **Modern Architecture**: Built with the latest Vue 3, TypeScript, and Vite
+2. **Complete Solution**: Frontend + Backend with full API
+3. **Production Ready**: Includes security, testing, and error handling
+4. **Highly Customizable**: Easy to modify and extend
+5. **Performance Optimized**: Lazy loading and efficient rendering
+6. **Mobile First**: Responsive design with touch support
+7. **Accessibility**: WCAG compliant with proper semantics
+8. **Developer Experience**: Excellent TypeScript support and documentation
+
+## 🔗 Related Projects
+
+- [TipTap](https://tiptap.dev/) - The headless editor framework
+- [Vue 3](https://vuejs.org/) - The progressive JavaScript framework
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [Lucide](https://lucide.dev/) - Beautiful & consistent icon pack
 
 ---
 
-**Start creating beautiful HTML content with your new professional editor!** 🚀 
+**Start building amazing content creation experiences with Vue HTML Editor!** 🚀
+
+For questions, issues, or contributions, please visit our [GitHub repository](repository-url).
